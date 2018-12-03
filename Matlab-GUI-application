@@ -1,0 +1,139 @@
+% Функция нужна за графичния интерфейс. Стандартна функция в MATLAB, която се използва без да се редактира.
+function varargout = GUIserial(varargin)
+% GUISERIAL MATLAB code for GUIserial.fig
+% Begin initialization code - DO NOT EDIT
+gui_Singleton = 1;
+gui_State = struct('gui_Name',       mfilename, ...
+                   'gui_Singleton',  gui_Singleton, ...
+                   'gui_OpeningFcn', @GUIserial_OpeningFcn, ...
+                   'gui_OutputFcn',  @GUIserial_OutputFcn, ...
+                   'gui_LayoutFcn',  [] , ...
+                   'gui_Callback',   []);
+if nargin && ischar(varargin{1})
+    gui_State.gui_Callback = str2func(varargin{1});
+end
+if nargout
+    [varargout{1:nargout}] = gui_mainfcn(gui_State, varargin{:});
+else
+    gui_mainfcn(gui_State, varargin{:});
+end
+% Функция за започване на комуникация със серийния порт.
+function GUIserial_OpeningFcn(hObject, eventdata, handles, varargin)
+ % Посочваме кой сериен порт ще се използва за комуникация.
+delete(instrfind({'Port'},{'COM3'}))
+clear a;
+global a;
+ % Настройка на скороста на предаване на данните.
+a=serial('COM3','BaudRate', 9600);
+ % Увеличаване на буферната памет в MATLAB и символ за край на четенето  от серийния порт.
+a.InputBufferSize = 2048;
+set(a, 'Terminator' , '/');
+fopen(a);
+% Choose default command line output for GUIserial
+handles.output = hObject;
+% Update handles structure
+guidata(hObject, handles);
+% Функция заложена в MATLAB нужна за графичния интерфейс. Не се редактира.
+function varargout = GUIserial_OutputFcn(hObject, eventdata, handles) 
+% Get default command line output from handles structure
+varargout{1} = handles.output;
+% Функция за команда при натискане на бутона
+% „Начертай графика и изчисли Джауловия интеграл“.
+function pushbutton1_Callback(hObject, eventdata, handles)
+global a;
+% Записване на информацията получена от серийния порт.
+data = fscanf(a);
+fclose(a);
+% Преобразуване на получения масив в два различни масива.
+% Единия масив е масив за времето, другият за тока.
+stringData = textscan(data, '%f %f','Delimiter',',');
+xData=stringData{1,1}(:, 1);
+yData=stringData{1,2}(:, 1);
+% Преобразуване на сигнала от сензора в ток.
+current_a = ((yData*0.0032)-2.46)/0.1;
+% Вземане на средни стойности от масивите за времето и за тока,
+% нужно за получването на графика без излични шумове получени при
+% измерването.
+for i = 1:37
+    k=i*5;
+    k1=k-4;
+   current(i) = (sum(current_a(k1:k)))/5;
+   time(i) = (sum(xData(k1:k)))/5;
+end
+ % Начертаване на графиката.
+plot(time, current)
+xlabel('Време [ms]')
+ylabel('Ток [A]')
+% Изчисляване на Джауловия интеграл и изписването му на екрана.
+stupka = (time(1,2)-time(1,1))*10^-3;
+current2 = current.^2;
+J=current2.*stupka;
+Ji = sum(J);
+set(handles.edit4,'String', Ji);
+ % Функция за команда при натискане на бутон „Ново измерване“.
+function pushbutton4_Callback(hObject, eventdata, handles)
+
+% Изчистване на графиката и стойността за Джауловият интеграл.
+set(handles.edit4,'String', 0);
+cla reset;
+global a;
+fopen (a);
+
+% Изпращане на команда '4' към Ардуино.
+fprintf(a, '4'); 
+
+% Фунцкия за команда при натискане на бутон „Настройка на проспектният ток в схемата“.
+function pushbutton6_Callback(hObject, eventdata, handles)
+global a;
+global b;
+global c;
+
+% Изпращане на команда '2' към Ардуино.
+fwrite(a, '2');
+% Пауза 1 секунда.
+pause(1);
+
+% Изпращане на команда за избрания проспектен ток от падащото меню.
+b = get(handles.popupmenu2, 'Value');
+if b == 1
+    c = 0;
+elseif b == 2
+    c = 25;
+elseif b == 3
+    c = 52;
+elseif b == 4
+    c = 81;
+elseif b == 5
+    c = 110;
+elseif b == 6
+    c = 139;
+elseif b == 7
+    c = 168;
+elseif b == 8
+    c = 197;
+elseif b == 9
+    c = 220;
+elseif b == 10
+    c = 255;
+end
+fwrite(a, c);
+ 
+% Функция за команда при натискане на бутон „Направи измерване“.
+function pushbutton8_Callback(hObject, eventdata, handles)
+global a;
+fprintf(a, '3');
+ 
+% Функция за полето, в което се изписва стойноста на Джауловия интеграл.
+function edit4_Callback(hObject, eventdata, handles)
+% --- Executes during object creation, after setting all properties.
+function edit4_CreateFcn(hObject, eventdata, handles)
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+ % Функция за падащото меню за избор на проспектния ток.
+function popupmenu2_Callback(hObject, eventdata, handles)
+% --- Executes during object creation, after setting all properties.
+function popupmenu2_CreateFcn(hObject, eventdata, handles)
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
